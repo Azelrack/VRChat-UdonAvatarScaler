@@ -1,0 +1,7 @@
+﻿.idea
+.vscode
+.readme/*.meta
+README.md.meta
+CHANGELOG.md.meta
+LICENSE.meta
+package.json.meta
