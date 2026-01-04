@@ -1,0 +1,23 @@
+{
+    "name": "Azelrack.AvatarScaler",
+    "rootNamespace": "",
+    "references": [
+        "UdonSharp.Runtime",
+        "Unity.TextMeshPro",
+        "VRC.Udon",
+        "VRC.SDK3",
+        "VRC.SDKBase",
+        "UnityEngine.UI",
+        "UnityEditor.UI",
+        "VRC.SDKBase.Editor"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

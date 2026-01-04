@@ -21,7 +21,7 @@ MonoBehaviour:
   compiledVersion: 2
   behaviourSyncMode: 0
   hasInteractEvent: 0
-  scriptID: 5932325821546993200
+  scriptID: 2303174258409962863
   serializationData:
     SerializedFormat: 2
     SerializedBytes: 
@@ -122,7 +122,7 @@ MonoBehaviour:
       Data: 7|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: AvatarScalerScript, Assembly-CSharp
+      Data: Azelrack.AvatarScaler.AvatarScalerScript, Azelrack.AvatarScaler
     - Name: 
       Entry: 8
       Data: 

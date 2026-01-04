@@ -1,3 +1,10 @@
+# 0.1.1 - VPM fix
+## Change
+- Editor PropertyDrawer to convert enum in int, as using assembly prevents U# to serialize enum types.
+## Fix
+- Created assembly for package installation to work properly.
+
+
 # 0.1 - Scaling basics and debug.
 ## New
 - Ingame rescale using VR controllers or keyboard, with customizable keys for keyboard.
