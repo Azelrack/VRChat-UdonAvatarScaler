@@ -48,10 +48,10 @@ namespace Azelrack.AvatarScaler
                 $"Strafe: {strafe}\n" +
                 $"Jump: {jump}\n" +
                 $"Gravity: {gravity}\n" +
-                $"--- Voice ---\n" +
-                $"Voice Distance Far: {voiceDistanceFar}\n" +
-                $"Voice Distance Near: {voiceDistanceNear}\n" +
-                $"Voice Volumetric Radius: {voiceVolumetricRadius}";
+                $"--- Voice & Audio ---\n" +
+                $"Voice & Audio Distance Far: {voiceDistanceFar}\n" +
+                $"Voice & Audio Distance Near: {voiceDistanceNear}\n" +
+                $"Voice & Audio Volumetric Radius: {voiceVolumetricRadius}";
 
             _debugDisplay.text = resume;
         }

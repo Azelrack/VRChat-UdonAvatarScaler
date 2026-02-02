@@ -1,11 +1,14 @@
 ﻿
+using System;
 using UdonSharp;
 using UnityEngine;
 using UnityEngine.UI;
 using VRC.SDK3.Persistence;
 using VRC.SDK3.Rendering;
+using VRC.SDK3.UdonNetworkCalling;
 using VRC.SDKBase;
 using VRC.Udon.Common;
+using VRC.Udon.Common.Interfaces;
 
 namespace Azelrack.AvatarScaler
 {
@@ -49,7 +52,32 @@ namespace Azelrack.AvatarScaler
 
         #endregion
 
-        #region Fields
+        #region Network Size Sync
+
+        /// <summary>
+        /// Time to wait before the next network sync event can be sent.
+        /// </summary>
+        private readonly double NETWORK_SYNC_INTERVAL_SEC = 0.5;
+
+        /// <summary>
+        /// Controls the update of <see cref="_networkSyncCountDown"/> countdown."/>
+        /// </summary>
+        private bool _waitForSync = false;
+
+        /// <summary>
+        /// Timer used to reduce the amount of network sync calls,
+        /// as rescaling can quickly overflow events limits and create strange delays.
+        /// </summary>
+        private double _networkSyncCountDown = 0f;
+
+        /// <summary>
+        /// Last size coefficient applied to local player.
+        /// </summary>
+        private float _sizeCoef;
+
+        #endregion
+
+        #region Input fields
 
         // Controller scaling
         private bool _inputGrabLeft = false;
@@ -71,7 +99,7 @@ namespace Azelrack.AvatarScaler
         [SerializeField] private float _baseRunSpeed = 4f;
         [SerializeField] private float _baseGravityStrength = 1f;
         [SerializeField]
-        [Tooltip("Used to multiply all base speeds in one place. 1.0 means no boost, 1.5 means 50% boost.")]
+        [Tooltip("Used to multiply all base speeds in one place. 1.0 means no boost, 1.5 means 50% boost."), Min(0.1f)]
         private float _speedBoost = 1.0f;
 
         #endregion
@@ -81,16 +109,22 @@ namespace Azelrack.AvatarScaler
         [Header("--- Voice control ---")]
         [SerializeField]
         [Tooltip("Distance in meters player voice will start to fall off. VRChat default is 0, we need just a little bit to improve hearing players on big sizes.")]
-        private float _baseVoiceDistanceNear = 0.1f;
+        private float _baseVoiceDistanceNear = 150f;
 
         [SerializeField]
-        [Tooltip("Distance in meters player voice can be heard. VRChat default is 25, I recommend 100 for size worlds.")]
-        private float _baseVoiceDistanceFar = 100f;
+        [Tooltip("Distance in meters player voice can be heard. VRChat default is 25, I recommend 150 for size worlds, " +
+            "if you want to be able to hear small people on the ground.")]
+        private float _baseVoiceDistanceFar = 350f;
 
         [SerializeField]
         [Tooltip("Area width of the player voice emitter. 0 = just a point on space, 1 = 1m width. " +
             "Useful to make very big player's voices origin cover more space.")]
         private float _baseVoiceVolumetricRadius = 0.1f;
+
+        [SerializeField]
+        [Tooltip("Maximum audio multiplier when growing. Prevents players from having crazy voice range when very big. " +
+            "Default will limit increase to 3 times the far/near values for any scaling mode. Input 1 to effectively remove audio scaling for big players.")]
+        private float _maxAudioMultiplier = 3f;
 
         [SerializeField]
         [Tooltip("When shrinking, player voice and avatar audio will shrink too, forcing bigger people to get their head close to hear them. " +
@@ -229,9 +263,10 @@ namespace Azelrack.AvatarScaler
                 AddToSize(Networking.LocalPlayer, -_playerScalingSpeedKeyboard, true);
             else if (Input.GetKey(_keyboardGrowKey))
                 AddToSize(Networking.LocalPlayer, _playerScalingSpeedKeyboard, true);
-
             else // Controller size controls
                 ProcessVRScalingInput(Networking.LocalPlayer);
+
+            UpdateNetworkSize();
         }
 
         /// <summary>
@@ -262,22 +297,6 @@ namespace Azelrack.AvatarScaler
 
         #region UdonSharpBehaviour events
 
-        public override void InputUse(bool value, UdonInputEventArgs args)
-        {
-            if (args.handType == HandType.LEFT)
-                _inputUseLeft = args.boolValue;
-            if (args.handType == HandType.RIGHT)
-                _inputUseRight = args.boolValue;
-        }
-
-        public override void InputGrab(bool value, UdonInputEventArgs args)
-        {
-            if (args.handType == HandType.LEFT)
-                _inputGrabLeft = args.boolValue;
-            if (args.handType == HandType.RIGHT)
-                _inputGrabRight = args.boolValue;
-        }
-
         /// <summary>
         /// Restores previous player size, if <see cref="_usePersistence"/> is enabled.
         /// </summary>
@@ -290,6 +309,8 @@ namespace Azelrack.AvatarScaler
                     localPlayer.SetAvatarEyeHeightByMeters(previousSize);
                 _allowSizeGestureAndKeys = PlayerData.GetBool(localPlayer, PLAYER_TOGGLE_SIZE_GESTURE_KEY);
             }
+            else // Force re-application of current size to ensure proper scaling on join.
+                localPlayer.SetAvatarEyeHeightByMeters(localPlayer.GetAvatarEyeHeightAsMeters());
 
             // Update gesture display with current status.
             if (_sizeGestureToggle)
@@ -354,6 +375,22 @@ namespace Azelrack.AvatarScaler
                 PlayerData.SetFloat(PLAYER_SIZE_KEY, currentHeight);
         }
 
+        public override void InputUse(bool value, UdonInputEventArgs args)
+        {
+            if (args.handType == HandType.LEFT)
+                _inputUseLeft = args.boolValue;
+            if (args.handType == HandType.RIGHT)
+                _inputUseRight = args.boolValue;
+        }
+
+        public override void InputGrab(bool value, UdonInputEventArgs args)
+        {
+            if (args.handType == HandType.LEFT)
+                _inputGrabLeft = args.boolValue;
+            if (args.handType == HandType.RIGHT)
+                _inputGrabRight = args.boolValue;
+        }
+
         #endregion
 
         #region Scaling methods
@@ -398,24 +435,94 @@ namespace Azelrack.AvatarScaler
         private void ApplyScaling(VRCPlayerApi localPlayer, float currentSize)
         {
             float ratio = GetSizeRatio(currentSize);
-            var sizeCoef = GetScaleFactor(ratio);
+            _sizeCoef = GetScaleFactor(ratio);
+            float boostedCoef = _sizeCoef * _speedBoost;
 
             if (_extraLogging)
-                TryWriteExtraLog(localPlayer, $"Size coef is: {sizeCoef}");
+                TryWriteExtraLog(localPlayer, $"Size coef is: {_sizeCoef}");
 
             // Movement scaling
-            localPlayer.SetStrafeSpeed(_baseStrafeSpeed * _speedBoost * sizeCoef);
-            localPlayer.SetWalkSpeed(_baseWalkSpeed * _speedBoost * sizeCoef);
-            localPlayer.SetRunSpeed(_baseRunSpeed * _speedBoost * sizeCoef);
-            localPlayer.SetJumpImpulse(_baseJumpImpulse * _speedBoost * sizeCoef);
-            localPlayer.SetGravityStrength(_baseGravityStrength * _speedBoost * sizeCoef);
+            localPlayer.SetStrafeSpeed(_baseStrafeSpeed * boostedCoef);
+            localPlayer.SetWalkSpeed(_baseWalkSpeed * boostedCoef);
+            localPlayer.SetRunSpeed(_baseRunSpeed * boostedCoef);
+            localPlayer.SetJumpImpulse(_baseJumpImpulse * boostedCoef);
+            localPlayer.SetGravityStrength(_baseGravityStrength * boostedCoef);
 
-            // Voice and audio needs to be linear, otherwise it would affect too much their ability to be heard.
-            localPlayer.SetVoiceDistanceNear(ApplyAudioScaling(_baseVoiceDistanceNear, ratio));
-            localPlayer.SetVoiceDistanceFar(ApplyAudioScaling(_baseVoiceDistanceFar, ratio));
-            localPlayer.SetVoiceVolumetricRadius(ApplyAudioScaling(_baseVoiceVolumetricRadius, ratio));
-            localPlayer.SetAvatarAudioFarRadius(ApplyAudioScaling(_baseVoiceDistanceFar, ratio));
-            localPlayer.SetAvatarAudioVolumetricRadius(ApplyAudioScaling(_baseVoiceVolumetricRadius, ratio));
+            ApplyAudioScaleChange(localPlayer.playerId, _sizeCoef);
+            // Audio scaling has to be synced to each client and is delayed to avoid network event flood.
+            StartNetworkScaleEventCountdown();
+        }
+
+        /// <summary>
+        /// Sets up the countdown to send a network event to sync scaling.
+        /// </summary>
+        private void StartNetworkScaleEventCountdown()
+        {
+            _waitForSync = true;
+
+            // Ensures at least one sync every NETWORK_SYNC_INTERVAL_SEC seconds.
+            if (_networkSyncCountDown <= double.Epsilon)
+                _networkSyncCountDown = NETWORK_SYNC_INTERVAL_SEC;
+        }
+
+        /// <summary>
+        /// Handles the countdown update and sending of network size sync events.
+        /// </summary>
+        private void UpdateNetworkSize()
+        {
+            // Sync size network events
+            if (_networkSyncCountDown > double.Epsilon)
+                _networkSyncCountDown -= Time.deltaTime;
+            else if (_waitForSync)
+            {
+                // Sync size to other clients every second when resizing.
+                SendCustomNetworkEvent(
+                    NetworkEventTarget.Others,
+                    nameof(ApplyAudioScaleChange),
+                    Networking.LocalPlayer.playerId,
+                    _sizeCoef
+                );
+                _waitForSync = false;
+            }
+        }
+
+        /// <summary>
+        /// Applies a scale ratio to any existing <see cref="VRCPlayerApi.playerId"/>.
+        /// </summary>
+        [NetworkCallable]
+        public void ApplyAudioScaleChange(int playerID, float ratio)
+        {
+            var playerToEdit = VRCPlayerApi.GetPlayerById(playerID);
+
+            if (playerToEdit == null)
+                return;
+
+            // Limits audio scaling to avoid crazy ranges on big players.
+            ratio = Mathf.Min(ratio, _maxAudioMultiplier);
+
+            // Voice and audio scaling needs to be linear, otherwise it could affect too much player's ability to be heard.
+            // Near
+            playerToEdit.SetVoiceDistanceNear(ApplyAudioScaling(_baseVoiceDistanceNear, ratio));
+
+            // Far
+            float audioFar = ApplyAudioScaling(_baseVoiceDistanceFar, ratio);
+            playerToEdit.SetVoiceDistanceFar(audioFar);
+            playerToEdit.SetAvatarAudioFarRadius(audioFar);
+
+            // Volumetric Radius
+            float audioVolumetricRadius = ApplyAudioScaling(_baseVoiceVolumetricRadius, ratio);
+            playerToEdit.SetVoiceVolumetricRadius(audioVolumetricRadius);
+            playerToEdit.SetAvatarAudioVolumetricRadius(audioVolumetricRadius);
+
+            if (_extraLogging)
+            {
+                Debug.Log(
+                    $"Applied audio scaling to player [{playerToEdit.playerId}] {playerToEdit.displayName}: " +
+                    $"Voice Near: {playerToEdit.GetVoiceDistanceNear()}m, " +
+                    $"Voice Far: {playerToEdit.GetVoiceDistanceFar()}m, " +
+                    $"Voice Volumetric Radius: {playerToEdit.GetVoiceVolumetricRadius()}m"
+                );
+            }
         }
 
         /// <summary>

@@ -1,11 +1,9 @@
-# Avatar Scaler
+# Udon Avatar Scaler
 All in one solution for VRChat worlds who wants size features.  
 This script allows you to control how scale affects speed, gravity, voice and sound, and customise how deep the change is.  
 Players can be given access to a gesture to quickly control their size.
 
-⚠️ This asset is a WIP, Audio Scaling is still not fully functional, other features should work properly ⚠️
-
-There is a world with different experiments where you can [try this system](https://vrchat.com/home/world/wrld_2b6b97de-02a0-48a0-9d28-287c34885c60).
+There is a world where you can [try this system](https://vrchat.com/home/world/wrld_2b6b97de-02a0-48a0-9d28-287c34885c60).
 
 # Planned updates
 Check my [trello page](https://trello.com/b/ifE3GyiI/vrchat-udon-avatar-scaler) if you're interested in which features are planned for this asset.
@@ -32,7 +30,7 @@ Check my [trello page](https://trello.com/b/ifE3GyiI/vrchat-udon-avatar-scaler) 
 
 <img src=".readme/PrefabContent.png" width="300"/>
 
-6. Scaler is now installed and ready! Default values are the ones I use in my worlds.
+6. Scaler is now installed and ready! Default values are the ones I use in my worlds. You might want to adjust the audio values depending on your world, it's impossible to have one setup that will fit every scenario, default values allows 100m tall players to hear 0.1m tall players.
 
 <img src=".readme/Scaler.png" width="300"/>
 

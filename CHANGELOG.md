@@ -1,3 +1,12 @@
+# 1.0.0 - Audio fix and first stable version !
+## New
+- Customizable hard limit for audio scaling, to avoid big players to get crazy voice ranges.
+## Change
+- Updated audio default values to improve hearing of very small player to very big ones.
+## Fix
+- Audio scaling is now properly streamed to all clients and applied to all players, but only every 0.5sec to avoid network events overload. 
+
+
 # 0.1.1 - VPM fix
 ## Change
 - Editor PropertyDrawer to convert enum in int, as using assembly prevents U# to serialize enum types.
