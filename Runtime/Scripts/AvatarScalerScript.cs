@@ -516,8 +516,8 @@ namespace Azelrack.AvatarScaler
 
             if (_extraLogging)
             {
-                Debug.Log(
-                    $"Applied audio scaling to player [{playerToEdit.playerId}] {playerToEdit.displayName}: " +
+                TryWriteExtraLog(playerToEdit, 
+                    $"Applied audio scaling.\n" +
                     $"Voice Near: {playerToEdit.GetVoiceDistanceNear()}m, " +
                     $"Voice Far: {playerToEdit.GetVoiceDistanceFar()}m, " +
                     $"Voice Volumetric Radius: {playerToEdit.GetVoiceVolumetricRadius()}m"
@@ -564,7 +564,6 @@ namespace Azelrack.AvatarScaler
         public bool ToggleLocalPlayerScalingGesture()
         {
             _allowSizeGestureAndKeys = !_allowSizeGestureAndKeys;
-            Debug.Log(_allowSizeGestureAndKeys);
             if (_usePersistence)
                 PlayerData.SetBool(PLAYER_TOGGLE_SIZE_GESTURE_KEY, _allowSizeGestureAndKeys);
             return _allowSizeGestureAndKeys;
@@ -574,10 +573,10 @@ namespace Azelrack.AvatarScaler
 
         #region Logging
 
-        private void TryWriteExtraLog(VRCPlayerApi localPlayer, string message)
+        private void TryWriteExtraLog(VRCPlayerApi player, string message)
         {
             if (_extraLogging)
-                Debug.Log($"[{nameof(AvatarScalerScript)}] Player {localPlayer.playerId} '{localPlayer.displayName}': {message}");
+                Debug.Log($"[{nameof(AvatarScalerScript)}] Player {player.playerId} '{player.displayName}': {message}");
         }
 
         #endregion

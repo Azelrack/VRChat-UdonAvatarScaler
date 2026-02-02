@@ -1097,8 +1097,9 @@ MonoBehaviour:
     - Name: tooltip
       Entry: 1
       Data: Maximum audio multiplier when growing. Prevents players from having crazy
-        voice range when very big. Default will limit increase to 4 times the far/near
-        values for any scaling mode.
+        voice range when very big. Default will limit increase to 3 times the far/near
+        values for any scaling mode. Input 1 to effectively remove audio scaling
+        for big players.
     - Name: 
       Entry: 8
       Data: 
