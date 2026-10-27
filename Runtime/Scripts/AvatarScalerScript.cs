@@ -55,9 +55,9 @@ namespace Azelrack.AvatarScaler
         #region Network Size Sync
 
         /// <summary>
-        /// Time to wait before the next network sync event can be sent.
+        /// Time to wait in seconds before the next network sync event can be sent.
         /// </summary>
-        private readonly double NETWORK_SYNC_INTERVAL_SEC = 0.5;
+        private const double NETWORK_SYNC_INTERVAL_SEC = 0.5;
 
         /// <summary>
         /// Controls the update of <see cref="_networkSyncCountDown"/> countdown."/>
@@ -126,7 +126,7 @@ namespace Azelrack.AvatarScaler
         [SerializeField]
         [Tooltip("When shrinking, player voice and avatar audio will shrink too, forcing bigger people to get their head close to hear them. " +
             "Can feel somewhat realistic, but really do not recommend for hangout worlds.")]
-        private bool _shrinkingAffectsAudio = false;
+        private bool _shrinkingAffectsAudioRange = false;
 
         #endregion
 
@@ -198,7 +198,7 @@ namespace Azelrack.AvatarScaler
         private bool _allowSizeGestureAndKeys = true;
 
         [SerializeField]
-        [Tooltip("By default, jump stays linear to ensure avatar stays able to jump across obstacles and furnitures.")]
+        [Tooltip("By default, jump stays linear to ensure avatar stays able to jump across obstacles like furniture.")]
         private bool _jumpStaysLinear = true;
 
         [SerializeField]
@@ -264,7 +264,7 @@ namespace Azelrack.AvatarScaler
                 AddToSize(Networking.LocalPlayer, -_playerScalingSpeedKeyboard, true);
             else if (Input.GetKey(_keyboardGrowKey))
                 AddToSize(Networking.LocalPlayer, _playerScalingSpeedKeyboard, true);
-            else // Controller size controls
+            else // VR Controller size controls
                 ProcessVRScalingInput(Networking.LocalPlayer);
 
             UpdateNetworkSize();
@@ -445,13 +445,18 @@ namespace Azelrack.AvatarScaler
             localPlayer.SetStrafeSpeed(_baseStrafeSpeed * _scaleCoef);
             localPlayer.SetWalkSpeed(_baseWalkSpeed * _scaleCoef);
             localPlayer.SetRunSpeed(_baseRunSpeed * _scaleCoef);
-            localPlayer.SetGravityStrength(_baseGravityStrength * _scaleCoef);
 
             // Jump has to stay linear
             if (_jumpStaysLinear)
+            {
+                localPlayer.SetGravityStrength(_baseGravityStrength * ratio);
                 localPlayer.SetJumpImpulse(_baseJumpImpulse * ratio);
+            }
             else
+            {
+                localPlayer.SetGravityStrength(_baseGravityStrength * _scaleCoef);
                 localPlayer.SetJumpImpulse(_baseJumpImpulse * _scaleCoef);
+            }
 
             ApplyAudioScaleChange(localPlayer.playerId, _scaleCoef);
             // Audio scaling has to be synced to each client and is delayed to avoid network event flood.
@@ -514,8 +519,8 @@ namespace Azelrack.AvatarScaler
             playerToEdit.SetVoiceDistanceFar(audioFar);
             playerToEdit.SetAvatarAudioFarRadius(audioFar);
 
-            // Volumetric Radius
-            float audioVolumetricRadius = ApplyAudioScaling(_baseVoiceVolumetricRadius, ratio);
+            // Volumetric Radius (always scales)
+            float audioVolumetricRadius = _baseVoiceVolumetricRadius * ratio;
             playerToEdit.SetVoiceVolumetricRadius(audioVolumetricRadius);
             playerToEdit.SetAvatarAudioVolumetricRadius(audioVolumetricRadius);
 
@@ -536,7 +541,7 @@ namespace Azelrack.AvatarScaler
         /// </summary>
         private float ApplyAudioScaling(float baseDistance, float ratio)
         {
-            if (_shrinkingAffectsAudio || ratio > 1)
+            if (_shrinkingAffectsAudioRange || ratio > 1)
                 return baseDistance * ratio;
             return baseDistance;
         }
