@@ -1,3 +1,9 @@
+# Next Release
+## Change
+- Jump stays by default linear whatever scaling mode is in use, to ensure player stays able to move properly through obstacles like furniture.
+- Removed confusing Speed Boost, as it was only somewhat useful for debug.
+- Reference Size is now 1.7m instead of 1.8m, since average avatar size on VRC is pretty low.
+
 # 1.0.0 - Audio fix and first stable version !
 ## New
 - Customizable hard limit for audio scaling, to avoid big players to get crazy voice ranges.

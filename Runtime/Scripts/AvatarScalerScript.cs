@@ -36,9 +36,9 @@ namespace Azelrack.AvatarScaler
         #region Constants
 
         /// <summary>
-        /// Size we will consider as "base" for all scaling features.
+        /// Size we will consider as the base for all scaling features.
         /// </summary>
-        public const float REFERENCE_SIZE = 1.8f;
+        public const float REFERENCE_SIZE = 1.7f;
 
         /// <summary>
         /// Key used to persist avatar size in <see cref="PlayerData"/>.
@@ -73,7 +73,7 @@ namespace Azelrack.AvatarScaler
         /// <summary>
         /// Last size coefficient applied to local player.
         /// </summary>
-        private float _sizeCoef;
+        private float _scaleCoef;
 
         #endregion
 
@@ -98,9 +98,6 @@ namespace Azelrack.AvatarScaler
         [SerializeField] private float _baseWalkSpeed = 3f;
         [SerializeField] private float _baseRunSpeed = 4f;
         [SerializeField] private float _baseGravityStrength = 1f;
-        [SerializeField]
-        [Tooltip("Used to multiply all base speeds in one place. 1.0 means no boost, 1.5 means 50% boost."), Min(0.1f)]
-        private float _speedBoost = 1.0f;
 
         #endregion
 
@@ -201,9 +198,13 @@ namespace Azelrack.AvatarScaler
         private bool _allowSizeGestureAndKeys = true;
 
         [SerializeField]
-        [Tooltip("Maximum allowed height. Even if VRChat scale menu only goes to 5, SDK allows to go up to 100.")]
+        [Tooltip("By default, jump stays linear to ensure avatar stays able to jump across obstacles and furnitures.")]
+        private bool _jumpStaysLinear = true;
+
+        [SerializeField]
+        [Tooltip("Maximum allowed height. Even if VRChat scale menu only goes to 5, SDK limits to 100.")]
         [Range(0.1f, 100f)]
-        private float _maxHeight = 100f;
+        private float _maxHeight = 100f; // Players using scalers can bypass this limit, but Udon won't let us.
 
         [SerializeField]
         [Tooltip("Minimum allowed height. VRChat height menu can go as down as 0.1. Camera near plane will be adjusted automatically.")]
@@ -407,10 +408,10 @@ namespace Azelrack.AvatarScaler
         public float GetSizeRatio(float currentSize) => currentSize / REFERENCE_SIZE;
 
         /// <summary>
-        /// Will create the right scaling ratio depending on the <see cref="ScalingMode"/> in use.
+        /// Will create the scaling coeficient matching the <see cref="ScalingMode"/> in use.
         /// </summary>
         /// <param name="ratio">Current size divided by <see cref="REFERENCE_SIZE"/></param>.
-        public float GetScaleFactor(float ratio)
+        public float GetScaleCoef(float ratio)
         {
             // Using assemblies with U# forces to use int instead of enum in serialized fields.
             switch (_scalingMode)
@@ -435,20 +436,24 @@ namespace Azelrack.AvatarScaler
         private void ApplyScaling(VRCPlayerApi localPlayer, float currentSize)
         {
             float ratio = GetSizeRatio(currentSize);
-            _sizeCoef = GetScaleFactor(ratio);
-            float boostedCoef = _sizeCoef * _speedBoost;
+            _scaleCoef = GetScaleCoef(ratio);
 
             if (_extraLogging)
-                TryWriteExtraLog(localPlayer, $"Size coef is: {_sizeCoef}");
+                TryWriteExtraLog(localPlayer, $"Size coef is: {_scaleCoef}");
 
             // Movement scaling
-            localPlayer.SetStrafeSpeed(_baseStrafeSpeed * boostedCoef);
-            localPlayer.SetWalkSpeed(_baseWalkSpeed * boostedCoef);
-            localPlayer.SetRunSpeed(_baseRunSpeed * boostedCoef);
-            localPlayer.SetJumpImpulse(_baseJumpImpulse * boostedCoef);
-            localPlayer.SetGravityStrength(_baseGravityStrength * boostedCoef);
+            localPlayer.SetStrafeSpeed(_baseStrafeSpeed * _scaleCoef);
+            localPlayer.SetWalkSpeed(_baseWalkSpeed * _scaleCoef);
+            localPlayer.SetRunSpeed(_baseRunSpeed * _scaleCoef);
+            localPlayer.SetGravityStrength(_baseGravityStrength * _scaleCoef);
 
-            ApplyAudioScaleChange(localPlayer.playerId, _sizeCoef);
+            // Jump has to stay linear
+            if (_jumpStaysLinear)
+                localPlayer.SetJumpImpulse(_baseJumpImpulse * ratio);
+            else
+                localPlayer.SetJumpImpulse(_baseJumpImpulse * _scaleCoef);
+
+            ApplyAudioScaleChange(localPlayer.playerId, _scaleCoef);
             // Audio scaling has to be synced to each client and is delayed to avoid network event flood.
             StartNetworkScaleEventCountdown();
         }
@@ -480,7 +485,7 @@ namespace Azelrack.AvatarScaler
                     NetworkEventTarget.Others,
                     nameof(ApplyAudioScaleChange),
                     Networking.LocalPlayer.playerId,
-                    _sizeCoef
+                    _scaleCoef
                 );
                 _waitForSync = false;
             }
