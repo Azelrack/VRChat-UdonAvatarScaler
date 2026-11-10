@@ -79,7 +79,8 @@ namespace Azelrack.AvatarScaler
         private bool _inputUseLeft = false;
         private bool _inputGrabRight = false;
         private bool _inputUseRight = false;
-        private float _initialHandDistance = 0;
+        private float _initialHandDistance = 0f;
+        private float _currentHandDistanceDiff = 0f;
 
         #endregion
 
@@ -285,13 +286,21 @@ namespace Azelrack.AvatarScaler
                 if (_initialHandDistance == 0)
                     _initialHandDistance = currentHandDistance;
                 else
+                    _currentHandDistanceDiff = Math.Abs(_initialHandDistance - currentHandDistance);
+
+                // Ensure we don't start scaling with controller noisy movements,
+                // Player has to move their hand 5cm before gesture counts.
+                if (_currentHandDistanceDiff > 0.05f)
                 {
                     var increaseSpeed = _playerScalingSpeedVR * sizeRatio;
                     AddToSize(playerApi, _initialHandDistance > currentHandDistance ? -increaseSpeed : increaseSpeed);
                 }
             }
             else if (_initialHandDistance != 0)
-                _initialHandDistance = 0;
+            {
+                _initialHandDistance = 0f;
+                _currentHandDistanceDiff = 0f;
+            }
         }
 
         #endregion

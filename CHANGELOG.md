@@ -1,6 +1,7 @@
 # Next Release
 ## New
-- New variable: Reference Size used to be a constant, and is now customizable from the editor (it's the value we consider as the default/base for all scaling features and calculations).
+- Reference Size used to be a constant, and is now customizable from the editor (it's the value we consider as the default/base for all scaling features and calculations).
+- Scaling doesn't start immediately when triggering the gesture, player now has to move controllers in one direction for aproximaltely 5 real life centimeters (limits accidental gestures, and feels much better when doing it intentionally).
 ## Change
 - Changed Max Height to 10 000 as it's the new maximum since OSC Avatar Scaling update.
 - Improved some tooltip descs.
