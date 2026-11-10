@@ -584,14 +584,15 @@ MonoBehaviour:
   _baseWalkSpeed: 3
   _baseRunSpeed: 4
   _baseGravityStrength: 1
-  _speedBoost: 1
-  _baseVoiceDistance: 100
+  _baseVoiceDistanceNear: 0
+  _baseVoiceDistanceFar: 350
   _baseVoiceVolumetricRadius: 0.1
-  _shrinkingAffectsAudio: 0
+  _maxAudioMultiplier: 3
+  _shrinkingAffectsAudioRange: 0
   _scalingMode: 1
-  _nonLinearShrinkExponent: 0.5
-  _nonLinearGrowExponent: 0.8
-  _customSizeCurve:
+  _nonLinearDownscaleExponent: 0.5
+  _nonLinearUpscaleExponent: 0.9
+  _customScalingCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
@@ -604,7 +605,7 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 1.8
+      time: 1.7
       value: 1
       inSlope: 0
       outSlope: 0
@@ -631,6 +632,8 @@ MonoBehaviour:
   _enforceLimits: 1
   _allowSizeMenu: 1
   _allowSizeGestureAndKeys: 1
+  _jumpStaysLinear: 1
+  _referenceSize: 1.7
   _maxHeight: 100
   _minHeight: 0.1
   _usePersistence: 0

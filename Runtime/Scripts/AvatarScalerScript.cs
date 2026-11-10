@@ -36,11 +36,6 @@ namespace Azelrack.AvatarScaler
         #region Constants
 
         /// <summary>
-        /// Size we will consider as the base for all scaling features.
-        /// </summary>
-        public const float REFERENCE_SIZE = 1.7f;
-
-        /// <summary>
         /// Key used to persist avatar size in <see cref="PlayerData"/>.
         /// </summary>
         private const string PLAYER_SIZE_KEY = "PlayerSize";
@@ -101,12 +96,12 @@ namespace Azelrack.AvatarScaler
 
         #endregion
 
-        #region Voice Control
+        #region Audio Range
 
-        [Header("--- Voice control ---")]
+        [Header("--- Audio Range ---")]
         [SerializeField]
         [Tooltip("Distance in meters player voice will start to fall off. VRChat default is 0, we need just a little bit to improve hearing players on big sizes.")]
-        private float _baseVoiceDistanceNear = 150f;
+        private float _baseVoiceDistanceNear = 0f;
 
         [SerializeField]
         [Tooltip("Distance in meters player voice can be heard. VRChat default is 25, I recommend 150 for size worlds, " +
@@ -150,14 +145,14 @@ namespace Azelrack.AvatarScaler
         /// </summary>
         [SerializeField]
         [Tooltip("Controls how size impacts growth, reducing the number below 1.0 means gaining less speed and other aspects.")]
-        private float _nonLinearUpscaleExponent = 0.8f;
+        private float _nonLinearUpscaleExponent = 0.9f;
 
         /// <summary>
         /// Uses unity <see cref="AnimationCurve"/> to allow world creator to define a custom scaling curve using GUI.
         /// </summary>
         [SerializeField]
         AnimationCurve _customScalingCurve =
-            new AnimationCurve(new Keyframe(0, 0.25f), new Keyframe(REFERENCE_SIZE, 1f), new Keyframe(100f, 80f));
+            new AnimationCurve(new Keyframe(0, 0.25f), new Keyframe(1.7f, 1f), new Keyframe(100f, 80f));
 
         #endregion
 
@@ -190,7 +185,7 @@ namespace Azelrack.AvatarScaler
         private bool _enforceLimits = true;
 
         [SerializeField]
-        [Tooltip("Allows players to use VRChat's size menu. Please note this menu is limited by VRChat.")]
+        [Tooltip("Allows players to use VRChat's size radial menu in Action menu. Please note this menu is limited by VRChat from 0.2m to 5m.")]
         private bool _allowSizeMenu = true;
 
         [SerializeField]
@@ -202,9 +197,14 @@ namespace Azelrack.AvatarScaler
         private bool _jumpStaysLinear = true;
 
         [SerializeField]
-        [Tooltip("Maximum allowed height. Even if VRChat scale menu only goes to 5, SDK limits to 100.")]
+        [Tooltip("Size we will consider as the default.base for all scaling features and calculations.")]
         [Range(0.1f, 100f)]
-        private float _maxHeight = 100f; // Players using scalers can bypass this limit, but Udon won't let us.
+        private float _referenceSize = 1.7f;
+
+        [SerializeField]
+        [Tooltip("Maximum allowed height. Even if VRChat scale menu only goes to 5, SDK limits to 100 in editor, but ingame it can go up to 10 000.")]
+        [Range(0.1f, 10000f)]
+        private float _maxHeight = 1000f; // Players using scalers can bypass this limit, but Udon won't let us.
 
         [SerializeField]
         [Tooltip("Minimum allowed height. VRChat height menu can go as down as 0.1. Camera near plane will be adjusted automatically.")]
@@ -398,19 +398,19 @@ namespace Azelrack.AvatarScaler
         //--- Some of these methods are public to allow potential use in your scripts.
 
         /// <summary>
-        /// Get player size ratio compared to <see cref="REFERENCE_SIZE"/>.
+        /// Get player size ratio compared to <see cref="_referenceSize"/>.
         /// </summary>
         public float GetSizeRatio(VRCPlayerApi player) => GetSizeRatio(player.GetAvatarEyeHeightAsMeters());
 
         /// <summary>
-        /// currentSize divided by <see cref="REFERENCE_SIZE"/>.
+        /// currentSize divided by <see cref="_referenceSize"/>.
         /// </summary>
-        public float GetSizeRatio(float currentSize) => currentSize / REFERENCE_SIZE;
+        public float GetSizeRatio(float currentSize) => currentSize / _referenceSize;
 
         /// <summary>
         /// Will create the scaling coeficient matching the <see cref="ScalingMode"/> in use.
         /// </summary>
-        /// <param name="ratio">Current size divided by <see cref="REFERENCE_SIZE"/></param>.
+        /// <param name="ratio">Current size divided by <see cref="_referenceSize"/></param>.
         public float GetScaleCoef(float ratio)
         {
             // Using assemblies with U# forces to use int instead of enum in serialized fields.
@@ -503,7 +503,6 @@ namespace Azelrack.AvatarScaler
         public void ApplyAudioScaleChange(int playerID, float ratio)
         {
             var playerToEdit = VRCPlayerApi.GetPlayerById(playerID);
-
             if (playerToEdit == null)
                 return;
 

@@ -1,5 +1,11 @@
 # Next Release
-## 1.0.2 - Hotfix for ScaleDebugScript
+## New
+- New variable: Reference Size used to be a constant, and is now customizable from the editor (it's the value we consider as the default/base for all scaling features and calculations).
+## Change
+- Changed Max Height to 10 000 as it's the new maximum since OSC Avatar Scaling update.
+- Improved some tooltip descs.
+
+# 1.0.2 - Hotfix for ScaleDebugScript
 - Exception caused by a renamed method in AvatarScalerScript.cs that was not renamed in ScaleDebugScript.cs.
 
 # 1.0.1 - Gravity & sound improvements
