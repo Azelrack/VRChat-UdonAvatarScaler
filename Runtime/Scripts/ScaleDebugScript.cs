@@ -26,7 +26,7 @@ namespace Azelrack.AvatarScaler
             var localPlayer = Networking.LocalPlayer;
             var size = localPlayer.GetAvatarEyeHeightAsMeters();
             var ratio = _avatarScalerScript.GetSizeRatio(size);
-            var factor = _avatarScalerScript.GetScaleFactor(ratio);
+            var factor = _avatarScalerScript.GetScaleCoef(ratio);
             var walk = localPlayer.GetWalkSpeed();
             var run = localPlayer.GetRunSpeed();
             var strafe = localPlayer.GetStrafeSpeed();

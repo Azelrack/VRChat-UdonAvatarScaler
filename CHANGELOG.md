@@ -1,4 +1,8 @@
 # Next Release
+## 1.0.2 - Hotfix for ScaleDebugScript
+- Exception caused by a renamed method in AvatarScalerScript.cs that was not renamed in ScaleDebugScript.cs.
+
+# 1.0.1 - Gravity & sound improvements
 ## Change
 - Jump stays by default linear whatever scaling mode is in use, to ensure player stays able to move properly through obstacles like furniture.
 - Removed confusing "Speed Boost", as it was only somewhat useful for debug.
