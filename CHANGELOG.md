@@ -5,6 +5,8 @@
 ## Change
 - Changed Max Height to 10 000 as it's the new maximum since OSC Avatar Scaling update.
 - Improved some tooltip descs.
+# Fix
+- Late joiners would not locally apply the sound scaling to players already present in instance.
 
 # 1.0.2 - Hotfix for ScaleDebugScript
 - Exception caused by a renamed method in AvatarScalerScript.cs that was not renamed in ScaleDebugScript.cs.

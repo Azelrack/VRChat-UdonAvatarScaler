@@ -350,6 +350,15 @@ namespace Azelrack.AvatarScaler
                 $"VRChat size menu is " + (_allowSizeMenu ? "allowed" : "unallowed") +
                 $"Size gesture use is " + (_allowSizeGestureAndKeys ? "allowed" : "unallowed") +
                 $" Max height: {_maxHeight}m, Min height: {_minHeight}m");
+
+            // Apply sound scaling to players already present in instance
+            foreach (VRCPlayerApi player in VRCPlayerApi.GetPlayers())
+            {
+                ApplyAudioScaleChange(
+                    player.playerId,
+                    GetSizeRatio(player.GetAvatarEyeHeightAsMeters()
+                ));
+            }
         }
 
         public override void OnAvatarEyeHeightChanged(VRCPlayerApi localPlayer, float prevEyeHeightAsMeters)
