@@ -1,7 +1,10 @@
 # Next Release
+
+# 1.0.3 - Size Gesture improved
 ## New
 - Reference Size used to be a constant, and is now customizable from the editor (it's the value we consider as the default/base for all scaling features and calculations).
 - Scaling doesn't start immediately when triggering the gesture, player now has to move controllers in one direction for aproximaltely 5 real life centimeters (limits accidental gestures, and feels much better when doing it intentionally).
+- When using persistence, if the size gesture bool is modified outside of the scaler script, it will detect it and use the new setting (handy if you use external UI prefabs).
 ## Change
 - Changed Max Height to 10 000 as it's the new maximum since OSC Avatar Scaling update.
 - Improved some tooltip descs.

@@ -308,6 +308,21 @@ namespace Azelrack.AvatarScaler
         #region UdonSharpBehaviour events
 
         /// <summary>
+        /// ScalerScript will adapt its parameters when detecting external changes in persistence data.
+        /// (Allows a simple use of external UI prefabs that manages persistence).
+        /// </summary>
+        public override void OnPlayerDataUpdated(VRCPlayerApi player, PlayerData.Info[] infos)
+        {
+            base.OnPlayerDataUpdated(player, infos);
+            if (PlayerData.HasKey(player, PLAYER_TOGGLE_SIZE_GESTURE_KEY))
+            {
+                bool persistenceValue = PlayerData.GetBool(player, PLAYER_TOGGLE_SIZE_GESTURE_KEY);
+                if (_allowSizeGestureAndKeys != persistenceValue)
+                    SetLocalPlayerScalingGesture(persistenceValue, true);
+            }
+        }
+
+        /// <summary>
         /// Restores previous player size, if <see cref="_usePersistence"/> is enabled.
         /// </summary>
         public override void OnPlayerRestored(VRCPlayerApi localPlayer)
@@ -594,6 +609,14 @@ namespace Azelrack.AvatarScaler
             if (_usePersistence)
                 PlayerData.SetBool(PLAYER_TOGGLE_SIZE_GESTURE_KEY, _allowSizeGestureAndKeys);
             return _allowSizeGestureAndKeys;
+        }
+
+        public bool SetLocalPlayerScalingGesture(bool toggle, bool ignorePersistence = false)
+        {
+            _allowSizeGestureAndKeys = toggle;
+            if (_usePersistence && !ignorePersistence)
+                PlayerData.SetBool(PLAYER_TOGGLE_SIZE_GESTURE_KEY, toggle);
+            return toggle;
         }
 
         #endregion
