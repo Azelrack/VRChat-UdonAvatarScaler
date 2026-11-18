@@ -314,11 +314,10 @@ namespace Azelrack.AvatarScaler
         public override void OnPlayerDataUpdated(VRCPlayerApi player, PlayerData.Info[] infos)
         {
             base.OnPlayerDataUpdated(player, infos);
-            if (PlayerData.HasKey(player, PLAYER_TOGGLE_SIZE_GESTURE_KEY))
+            if (PlayerData.TryGetBool(player, PLAYER_TOGGLE_SIZE_GESTURE_KEY, out bool persistenceValue)
+                && _allowSizeGestureAndKeys != persistenceValue)
             {
-                bool persistenceValue = PlayerData.GetBool(player, PLAYER_TOGGLE_SIZE_GESTURE_KEY);
-                if (_allowSizeGestureAndKeys != persistenceValue)
-                    SetLocalPlayerScalingGesture(persistenceValue, true);
+                SetLocalPlayerScalingGesture(persistenceValue, true);
             }
         }
 
@@ -329,10 +328,10 @@ namespace Azelrack.AvatarScaler
         {
             if (localPlayer.isLocal && _usePersistence)
             {
-                float previousSize = PlayerData.GetFloat(localPlayer, PLAYER_SIZE_KEY);
-                if (previousSize > 0)
+                if (PlayerData.TryGetFloat(localPlayer, PLAYER_SIZE_KEY, out float previousSize) && previousSize > 0)
                     localPlayer.SetAvatarEyeHeightByMeters(previousSize);
-                _allowSizeGestureAndKeys = PlayerData.GetBool(localPlayer, PLAYER_TOGGLE_SIZE_GESTURE_KEY);
+                if (PlayerData.TryGetBool(localPlayer, PLAYER_TOGGLE_SIZE_GESTURE_KEY, out bool toggle))
+                    _allowSizeGestureAndKeys = toggle;
             }
             else // Force re-application of current size to ensure proper scaling on join.
                 localPlayer.SetAvatarEyeHeightByMeters(localPlayer.GetAvatarEyeHeightAsMeters());
