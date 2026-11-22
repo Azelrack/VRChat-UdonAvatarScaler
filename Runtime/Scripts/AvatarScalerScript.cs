@@ -152,7 +152,7 @@ namespace Azelrack.AvatarScaler
         /// Uses unity <see cref="AnimationCurve"/> to allow world creator to define a custom scaling curve using GUI.
         /// </summary>
         [SerializeField]
-        AnimationCurve _customScalingCurve =
+        private AnimationCurve _customScalingCurve =
             new AnimationCurve(new Keyframe(0, 0.25f), new Keyframe(1.7f, 1f), new Keyframe(100f, 80f));
 
         #endregion
@@ -313,8 +313,8 @@ namespace Azelrack.AvatarScaler
         /// </summary>
         public override void OnPlayerDataUpdated(VRCPlayerApi player, PlayerData.Info[] infos)
         {
-            base.OnPlayerDataUpdated(player, infos);
-            if (PlayerData.TryGetBool(player, PLAYER_TOGGLE_SIZE_GESTURE_KEY, out bool persistenceValue)
+            if (player.isLocal
+                && PlayerData.TryGetBool(player, PLAYER_TOGGLE_SIZE_GESTURE_KEY, out bool persistenceValue)
                 && _allowSizeGestureAndKeys != persistenceValue)
             {
                 SetLocalPlayerScalingGesture(persistenceValue, true);
@@ -324,17 +324,19 @@ namespace Azelrack.AvatarScaler
         /// <summary>
         /// Restores previous player size, if <see cref="_usePersistence"/> is enabled.
         /// </summary>
-        public override void OnPlayerRestored(VRCPlayerApi localPlayer)
+        public override void OnPlayerRestored(VRCPlayerApi player)
         {
-            if (localPlayer.isLocal && _usePersistence)
+            if (!player.isLocal)
+                return;
+            if (_usePersistence)
             {
-                if (PlayerData.TryGetFloat(localPlayer, PLAYER_SIZE_KEY, out float previousSize) && previousSize > 0)
-                    localPlayer.SetAvatarEyeHeightByMeters(previousSize);
-                if (PlayerData.TryGetBool(localPlayer, PLAYER_TOGGLE_SIZE_GESTURE_KEY, out bool toggle))
+                if (PlayerData.TryGetFloat(player, PLAYER_SIZE_KEY, out float previousSize) && previousSize > 0)
+                    player.SetAvatarEyeHeightByMeters(previousSize);
+                if (PlayerData.TryGetBool(player, PLAYER_TOGGLE_SIZE_GESTURE_KEY, out bool toggle))
                     _allowSizeGestureAndKeys = toggle;
             }
-            else // Force re-application of current size to ensure proper scaling on join.
-                localPlayer.SetAvatarEyeHeightByMeters(localPlayer.GetAvatarEyeHeightAsMeters());
+            else // Force application of current size to ensure proper scaling on join.
+                player.SetAvatarEyeHeightByMeters(player.GetAvatarEyeHeightAsMeters());
 
             // Update gesture display with current status.
             if (_sizeGestureToggle)
@@ -346,41 +348,41 @@ namespace Azelrack.AvatarScaler
             }
         }
 
-        public override void OnPlayerJoined(VRCPlayerApi localPlayer)
+        public override void OnPlayerJoined(VRCPlayerApi player)
         {
-            // Height management methods only works for local player, basically each client manages its own size.
-            if (!localPlayer.isLocal)
+            // Height management methods only works for local player, each client manages its own size.
+            if (!player.isLocal)
                 return;
 
             if (_enforceLimits)
             {
-                localPlayer.SetAvatarEyeHeightMaximumByMeters(_maxHeight);
-                localPlayer.SetAvatarEyeHeightMinimumByMeters(_minHeight);
+                player.SetAvatarEyeHeightMaximumByMeters(_maxHeight);
+                player.SetAvatarEyeHeightMinimumByMeters(_minHeight);
             }
 
-            localPlayer.SetManualAvatarScalingAllowed(_allowSizeMenu);
+            player.SetManualAvatarScalingAllowed(_allowSizeMenu);
 
-            TryWriteExtraLog(localPlayer,
+            TryWriteExtraLog(player,
                 $"VRChat size menu is " + (_allowSizeMenu ? "allowed" : "unallowed") +
                 $"Size gesture use is " + (_allowSizeGestureAndKeys ? "allowed" : "unallowed") +
                 $" Max height: {_maxHeight}m, Min height: {_minHeight}m");
 
             // Apply sound scaling to players already present in instance
-            foreach (VRCPlayerApi player in VRCPlayerApi.GetPlayers())
+            foreach (VRCPlayerApi otherPlayer in VRCPlayerApi.GetPlayers())
             {
                 ApplyAudioScaleChange(
-                    player.playerId,
-                    GetSizeRatio(player.GetAvatarEyeHeightAsMeters()
+                    otherPlayer.playerId,
+                    GetSizeRatio(otherPlayer.GetAvatarEyeHeightAsMeters()
                 ));
             }
         }
 
-        public override void OnAvatarEyeHeightChanged(VRCPlayerApi localPlayer, float prevEyeHeightAsMeters)
+        public override void OnAvatarEyeHeightChanged(VRCPlayerApi player, float prevEyeHeightAsMeters)
         {
-            if (!localPlayer.isLocal)
+            if (!player.isLocal)
                 return;
 
-            float currentHeight = localPlayer.GetAvatarEyeHeightAsMeters();
+            float currentHeight = player.GetAvatarEyeHeightAsMeters();
 
             if (_enforceLimits)
             {
@@ -390,8 +392,8 @@ namespace Azelrack.AvatarScaler
                 // If we detect a mismatch in height bigger than float value margin error, enforce height.
                 if (outOfBounds)
                 {
-                    TryWriteExtraLog(localPlayer, $"went from {prevEyeHeightAsMeters}m to {currentHeight}m. Enforcing height limit to {clampedHeight}m");
-                    localPlayer.SetAvatarEyeHeightByMeters(clampedHeight);
+                    TryWriteExtraLog(player, $"went from {prevEyeHeightAsMeters}m to {currentHeight}m. Enforcing height limit to {clampedHeight}m");
+                    player.SetAvatarEyeHeightByMeters(clampedHeight);
                     currentHeight = clampedHeight;
                 }
             }
@@ -402,7 +404,7 @@ namespace Azelrack.AvatarScaler
             else
                 VRCCameraSettings.ScreenCamera.NearClipPlane = 0.05f;
 
-            ApplyScaling(localPlayer, currentHeight);
+            ApplyScaling(player, currentHeight);
 
             if (_usePersistence)
                 PlayerData.SetFloat(PLAYER_SIZE_KEY, currentHeight);
@@ -557,7 +559,7 @@ namespace Azelrack.AvatarScaler
 
             if (_extraLogging)
             {
-                TryWriteExtraLog(playerToEdit, 
+                TryWriteExtraLog(playerToEdit,
                     $"Applied audio scaling.\n" +
                     $"Voice Near: {playerToEdit.GetVoiceDistanceNear()}m, " +
                     $"Voice Far: {playerToEdit.GetVoiceDistanceFar()}m, " +

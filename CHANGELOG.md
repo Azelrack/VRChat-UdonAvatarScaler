@@ -1,4 +1,6 @@
-# Next Release
+# 1.0.4
+## Fix
+- Scaling gesture toggle could change following another player's settings.
 
 # 1.0.3 - Size Gesture improved
 ## New
@@ -28,7 +30,7 @@
 ## Change
 - Updated audio default values to improve hearing of very small player to very big ones.
 ## Fix
-- Audio scaling is now properly streamed to all clients and applied to all players, but only every 0.5sec to avoid network events overload. 
+- Audio scaling is now properly streamed to all clients and applied to all players, but only every 0.5sec to avoid network events overload.
 
 
 # 0.1.1 - VPM fix
@@ -46,6 +48,6 @@
 - Chose between linear, non linear and custom curve how scale affects avatar speed and range.
 - Option in prefab settings to persist user size and gesture toggle.
 - Debug UI prefab to display how local player size is affected by the scaler.
-- Camera near plane is automatically adjusted when players shrinks below 0.4m. 
+- Camera near plane is automatically adjusted when players shrinks below 0.4m.
 ## Note
 Audio scaling is not fully working yet.
