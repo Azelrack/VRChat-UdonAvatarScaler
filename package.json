@@ -12,9 +12,9 @@
     "com.unity.textmeshpro": "3.0.6"
   },
   "vpmDependencies" : {
-    "com.vrchat.base": "3.9.0",
-    "com.vrchat.worlds": "3.9.0",
-    "com.vrchat.core.vpm-resolver": "0.1.29",
+    "com.vrchat.base": ">=3.9.0",
+    "com.vrchat.worlds": ">=3.9.0",
+    "com.vrchat.core.vpm-resolver": ">=0.1.29"
   },
  "keywords": [
     "Avatar",
