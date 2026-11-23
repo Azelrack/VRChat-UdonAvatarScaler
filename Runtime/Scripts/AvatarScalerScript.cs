@@ -1,14 +1,11 @@
-﻿
-using System;
+﻿using System;
 using UdonSharp;
 using UnityEngine;
 using UnityEngine.UI;
 using VRC.SDK3.Persistence;
 using VRC.SDK3.Rendering;
-using VRC.SDK3.UdonNetworkCalling;
 using VRC.SDKBase;
 using VRC.Udon.Common;
-using VRC.Udon.Common.Interfaces;
 
 namespace Azelrack.AvatarScaler
 {
@@ -40,37 +37,12 @@ namespace Azelrack.AvatarScaler
         /// </summary>
         private const string PLAYER_SIZE_KEY = "PlayerSize";
 
-        /// <summary>
-        /// Key used to persist user's toggle of size gesture.
-        /// </summary>
-        private const string PLAYER_TOGGLE_SIZE_GESTURE_KEY = "SizeGesture";
-
         #endregion
-
-        #region Network Size Sync
-
-        /// <summary>
-        /// Time to wait in seconds before the next network sync event can be sent.
-        /// </summary>
-        private const double NETWORK_SYNC_INTERVAL_SEC = 0.5;
-
-        /// <summary>
-        /// Controls the update of <see cref="_networkSyncCountDown"/> countdown."/>
-        /// </summary>
-        private bool _waitForSync = false;
-
-        /// <summary>
-        /// Timer used to reduce the amount of network sync calls,
-        /// as rescaling can quickly overflow events limits and create strange delays.
-        /// </summary>
-        private double _networkSyncCountDown = 0f;
 
         /// <summary>
         /// Last size coefficient applied to local player.
         /// </summary>
         private float _scaleCoef;
-
-        #endregion
 
         #region Input fields
 
@@ -101,13 +73,13 @@ namespace Azelrack.AvatarScaler
 
         [Header("--- Audio Range ---")]
         [SerializeField]
-        [Tooltip("Distance in meters player voice will start to fall off. VRChat default is 0, we need just a little bit to improve hearing players on big sizes.")]
+        [Tooltip("Distance in meters player voice will start to fall off.")]
         private float _baseVoiceDistanceNear = 0f;
 
         [SerializeField]
         [Tooltip("Distance in meters player voice can be heard. VRChat default is 25, I recommend 150 for size worlds, " +
             "if you want to be able to hear small people on the ground.")]
-        private float _baseVoiceDistanceFar = 350f;
+        private float _baseVoiceDistanceFar = 150f;
 
         [SerializeField]
         [Tooltip("Area width of the player voice emitter. 0 = just a point on space, 1 = 1m width. " +
@@ -194,12 +166,11 @@ namespace Azelrack.AvatarScaler
         private bool _allowSizeGestureAndKeys = true;
 
         [SerializeField]
-        [Tooltip("By default, jump stays linear to ensure avatar stays able to jump across obstacles like furniture.")]
+        [Tooltip("Keeping jump linear ensures avatar to better jump across obstacles like furniture.")]
         private bool _jumpStaysLinear = true;
 
         [SerializeField]
         [Tooltip("Size we will consider as the default.base for all scaling features and calculations.")]
-        [Range(0.1f, 100f)]
         private float _referenceSize = 1.7f;
 
         [SerializeField]
@@ -219,16 +190,12 @@ namespace Azelrack.AvatarScaler
         [Header("--- Extra ---")]
 
         [SerializeField]
-        [Tooltip("Use VRChat persistance to save user size and toggles, and restore them when they log in.")]
-        private bool _usePersistence = false;
+        [Tooltip("Use VRChat persistence to save last user size, and restore it when they log in.")]
+        private bool _usePersistenceForSize = false;
 
         [SerializeField]
         [Tooltip("Log every action this script takes on size.")]
         private bool _extraLogging = false;
-
-        [SerializeField]
-        [Tooltip("Optionnal toggle for Size Gesture And Keys. Script will ensure its IsOn status will match the default state & player persistance.")]
-        private Toggle _sizeGestureToggle;
 
         #endregion
 
@@ -267,8 +234,6 @@ namespace Azelrack.AvatarScaler
                 AddToSize(Networking.LocalPlayer, _playerScalingSpeedKeyboard, true);
             else // VR Controller size controls
                 ProcessVRScalingInput(Networking.LocalPlayer);
-
-            UpdateNetworkSize();
         }
 
         /// <summary>
@@ -308,44 +273,18 @@ namespace Azelrack.AvatarScaler
         #region UdonSharpBehaviour events
 
         /// <summary>
-        /// ScalerScript will adapt its parameters when detecting external changes in persistence data.
-        /// (Allows a simple use of external UI prefabs that manages persistence).
-        /// </summary>
-        public override void OnPlayerDataUpdated(VRCPlayerApi player, PlayerData.Info[] infos)
-        {
-            if (player.isLocal
-                && PlayerData.TryGetBool(player, PLAYER_TOGGLE_SIZE_GESTURE_KEY, out bool persistenceValue)
-                && _allowSizeGestureAndKeys != persistenceValue)
-            {
-                SetLocalPlayerScalingGesture(persistenceValue, true);
-            }
-        }
-
-        /// <summary>
         /// Restores previous player size, if <see cref="_usePersistence"/> is enabled.
         /// </summary>
         public override void OnPlayerRestored(VRCPlayerApi player)
         {
             if (!player.isLocal)
                 return;
-            if (_usePersistence)
-            {
-                if (PlayerData.TryGetFloat(player, PLAYER_SIZE_KEY, out float previousSize) && previousSize > 0)
-                    player.SetAvatarEyeHeightByMeters(previousSize);
-                if (PlayerData.TryGetBool(player, PLAYER_TOGGLE_SIZE_GESTURE_KEY, out bool toggle))
-                    _allowSizeGestureAndKeys = toggle;
-            }
+
+            // Restore Size
+            if (_usePersistenceForSize && PlayerData.TryGetFloat(player, PLAYER_SIZE_KEY, out float previousSize) && previousSize > 0)
+                player.SetAvatarEyeHeightByMeters(previousSize);
             else // Force application of current size to ensure proper scaling on join.
                 player.SetAvatarEyeHeightByMeters(player.GetAvatarEyeHeightAsMeters());
-
-            // Update gesture display with current status.
-            if (_sizeGestureToggle)
-            {
-                _sizeGestureToggle.isOn = _allowSizeGestureAndKeys;
-                // Changing toggle status will change _allowSizeGesture, so we need to set it back.
-                // It feels like a lazy workaround, might do better later if I add more options.
-                _allowSizeGestureAndKeys = _sizeGestureToggle.isOn;
-            }
         }
 
         public override void OnPlayerJoined(VRCPlayerApi player)
@@ -371,7 +310,7 @@ namespace Azelrack.AvatarScaler
             foreach (VRCPlayerApi otherPlayer in VRCPlayerApi.GetPlayers())
             {
                 ApplyAudioScaleChange(
-                    otherPlayer.playerId,
+                    otherPlayer,
                     GetSizeRatio(otherPlayer.GetAvatarEyeHeightAsMeters()
                 ));
             }
@@ -380,7 +319,11 @@ namespace Azelrack.AvatarScaler
         public override void OnAvatarEyeHeightChanged(VRCPlayerApi player, float prevEyeHeightAsMeters)
         {
             if (!player.isLocal)
+            {
+                var distantPlayerHeight = player.GetAvatarEyeHeightAsMeters();
+                ApplyScaling(player, distantPlayerHeight);
                 return;
+            }
 
             float currentHeight = player.GetAvatarEyeHeightAsMeters();
 
@@ -406,7 +349,7 @@ namespace Azelrack.AvatarScaler
 
             ApplyScaling(player, currentHeight);
 
-            if (_usePersistence)
+            if (_usePersistenceForSize)
                 PlayerData.SetFloat(PLAYER_SIZE_KEY, currentHeight);
         }
 
@@ -467,79 +410,41 @@ namespace Azelrack.AvatarScaler
         /// <summary>
         /// Scale avatar features depending on <see cref="_scalingMode"/> and <see cref="VRCPlayerApi.GetAvatarEyeHeightAsMeters"/>.
         /// </summary>
-        private void ApplyScaling(VRCPlayerApi localPlayer, float currentSize)
+        private void ApplyScaling(VRCPlayerApi player, float currentSize)
         {
             float ratio = GetSizeRatio(currentSize);
             _scaleCoef = GetScaleCoef(ratio);
 
             if (_extraLogging)
-                TryWriteExtraLog(localPlayer, $"Size coef is: {_scaleCoef}");
+                TryWriteExtraLog(player, $"Size coef is: {_scaleCoef}");
 
-            // Movement scaling
-            localPlayer.SetStrafeSpeed(_baseStrafeSpeed * _scaleCoef);
-            localPlayer.SetWalkSpeed(_baseWalkSpeed * _scaleCoef);
-            localPlayer.SetRunSpeed(_baseRunSpeed * _scaleCoef);
-
-            // Jump has to stay linear
-            if (_jumpStaysLinear)
+            if (player.isLocal)
             {
-                localPlayer.SetGravityStrength(_baseGravityStrength * ratio);
-                localPlayer.SetJumpImpulse(_baseJumpImpulse * ratio);
+                // Movement scaling
+                player.SetStrafeSpeed(_baseStrafeSpeed * _scaleCoef);
+                player.SetWalkSpeed(_baseWalkSpeed * _scaleCoef);
+                player.SetRunSpeed(_baseRunSpeed * _scaleCoef);
+
+                if (_jumpStaysLinear)
+                {
+                    player.SetGravityStrength(_baseGravityStrength * ratio);
+                    player.SetJumpImpulse(_baseJumpImpulse * ratio);
+                }
+                else
+                {
+                    player.SetGravityStrength(_baseGravityStrength * _scaleCoef);
+                    player.SetJumpImpulse(_baseJumpImpulse * _scaleCoef);
+                }
             }
-            else
-            {
-                localPlayer.SetGravityStrength(_baseGravityStrength * _scaleCoef);
-                localPlayer.SetJumpImpulse(_baseJumpImpulse * _scaleCoef);
-            }
 
-            ApplyAudioScaleChange(localPlayer.playerId, _scaleCoef);
-            // Audio scaling has to be synced to each client and is delayed to avoid network event flood.
-            StartNetworkScaleEventCountdown();
-        }
-
-        /// <summary>
-        /// Sets up the countdown to send a network event to sync scaling.
-        /// </summary>
-        private void StartNetworkScaleEventCountdown()
-        {
-            _waitForSync = true;
-
-            // Ensures at least one sync every NETWORK_SYNC_INTERVAL_SEC seconds.
-            if (_networkSyncCountDown <= double.Epsilon)
-                _networkSyncCountDown = NETWORK_SYNC_INTERVAL_SEC;
-        }
-
-        /// <summary>
-        /// Handles the countdown update and sending of network size sync events.
-        /// </summary>
-        private void UpdateNetworkSize()
-        {
-            // Sync size network events
-            if (_networkSyncCountDown > double.Epsilon)
-                _networkSyncCountDown -= Time.deltaTime;
-            else if (_waitForSync)
-            {
-                // Sync size to other clients every second when resizing.
-                SendCustomNetworkEvent(
-                    NetworkEventTarget.Others,
-                    nameof(ApplyAudioScaleChange),
-                    Networking.LocalPlayer.playerId,
-                    _scaleCoef
-                );
-                _waitForSync = false;
-            }
+            ApplyAudioScaleChange(player, _scaleCoef);
         }
 
         /// <summary>
         /// Applies a scale ratio to any existing <see cref="VRCPlayerApi.playerId"/>.
         /// </summary>
-        [NetworkCallable]
-        public void ApplyAudioScaleChange(int playerID, float ratio)
+        public void ApplyAudioScaleChange(VRCPlayerApi playerToEdit, float ratio)
         {
-            var playerToEdit = VRCPlayerApi.GetPlayerById(playerID);
-            if (playerToEdit == null)
-                return;
-
             // Limits audio scaling to avoid crazy ranges on big players.
             ratio = Mathf.Min(ratio, _maxAudioMultiplier);
 
@@ -598,25 +503,15 @@ namespace Azelrack.AvatarScaler
 
         #endregion
 
-        #region Toggles
+        #region Toggle Methods
 
-        /// <summary>
-        /// Toggle the use of gesture and keys.
-        /// </summary>
-        /// <returns>Current state of <see cref="_allowSizeGestureAndKeys"/></returns>
-        public bool ToggleLocalPlayerScalingGesture()
-        {
-            _allowSizeGestureAndKeys = !_allowSizeGestureAndKeys;
-            if (_usePersistence)
-                PlayerData.SetBool(PLAYER_TOGGLE_SIZE_GESTURE_KEY, _allowSizeGestureAndKeys);
-            return _allowSizeGestureAndKeys;
-        }
+        public bool _ToggleScalingGestureOn() => SetLocalPlayerScalingGesture(true);
 
-        public bool SetLocalPlayerScalingGesture(bool toggle, bool ignorePersistence = false)
+        public bool _ToggleScalingGestureOff() => SetLocalPlayerScalingGesture(false);
+
+        public bool SetLocalPlayerScalingGesture(bool toggle)
         {
             _allowSizeGestureAndKeys = toggle;
-            if (_usePersistence && !ignorePersistence)
-                PlayerData.SetBool(PLAYER_TOGGLE_SIZE_GESTURE_KEY, toggle);
             return toggle;
         }
 
@@ -627,7 +522,7 @@ namespace Azelrack.AvatarScaler
         private void TryWriteExtraLog(VRCPlayerApi player, string message)
         {
             if (_extraLogging)
-                Debug.Log($"[{nameof(AvatarScalerScript)}] Player {player.playerId} '{player.displayName}': {message}");
+                Debug.Log($"[{nameof(AvatarScalerScript)}] Player #{player.playerId} '{player.displayName}': {message}");
         }
 
         #endregion

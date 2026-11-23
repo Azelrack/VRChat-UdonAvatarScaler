@@ -1,6 +1,6 @@
 {
   "name": "com.azelrack.vrchat-udon-avatar-scaler",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "displayName": "Udon Avatar Scaler",
   "description": "All in one solution to control avatar height and to scale with it speed, gravity, jump, voice and audio.",
   "unity": "2022.3",
@@ -14,12 +14,14 @@
   "vpmDependencies" : {
     "com.vrchat.base": ">=3.9.0",
     "com.vrchat.worlds": ">=3.9.0",
-    "com.vrchat.core.vpm-resolver": ">=0.1.29"
+    "com.vrchat.core.vpm-resolver": ">=0.1.29",
+    "com.azelrack.vrchat-udon-common-tools": "^0.1.3"
   },
  "keywords": [
     "Avatar",
     "Scaling",
-    "Size"
+    "Size",
+    "Prefab"
   ],
   "author": {
     "name": "Azelrack",

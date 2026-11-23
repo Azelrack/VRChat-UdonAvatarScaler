@@ -1,4 +1,12 @@
-# 1.0.4
+# 1.0.5 - UI Update and Udon logic improvements
+## New
+- Two new public methods, _ToggleScalingGestureOn and _ToggleScalingGestureOff you can use to manage gesture toggle with external UI.
+## Change
+- Scaler now makes a proper use of OnAvatarEyeHeightChanged event, and no longer uses network calls.
+- Size gesture toggle uses the SimpleToggle prefab from my minimal UI package "Udon Common Tools", used by my different systems.
+- Toggle persistence is now managed externally by SimpleToggle script (you can disable persistence in "Size Gesture Toggle" object in hierarchy).
+
+# 1.0.4 - Toggle Setting & Persistence fix
 ## Fix
 - Scaling gesture toggle could change following another player's settings.
 
