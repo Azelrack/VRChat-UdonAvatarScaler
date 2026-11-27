@@ -201,6 +201,12 @@ namespace Azelrack.AvatarScaler
 
         #endregion
 
+        #region Public properties
+
+        public float ReferenceSize => _referenceSize;
+
+        #endregion
+
         #region Private properties
 
         private bool IsScalingGestureActive =>

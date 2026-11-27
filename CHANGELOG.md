@@ -1,3 +1,7 @@
+# Next Release
+## New
+- Reference Size has a public property in case world creator wants to use it as a reference outside of script.
+
 # 1.0.5 - UI Update and Udon logic improvements
 ## New
 - Two new public methods, _ToggleScalingGestureOn and _ToggleScalingGestureOff you can use to manage gesture toggle with external UI.
